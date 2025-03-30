@@ -35,7 +35,7 @@ local common = require "common"
 local options = {
     fontDir = "",
     idxDbName = "fc-subs.db",
-    idxCacheFile = "~~/idx-cache",
+    idxCacheFile = "~~/font-index",
     cacheDir = "~~/fontCache/"
 }
 
