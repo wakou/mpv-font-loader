@@ -57,8 +57,10 @@ local function getFontListFromAss(filePath)
     local eventTextCommaIndex = -1;
 
     for line in file:lines() do
+        log.debug(string.lower(string.sub(line, 1, 11)))
         if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
             or string.lower(string.sub(line, 1, 12)) == "[v4+ styles]" then
+            log.debug("wvfwqvq")
             section = "Styles"
             goto continue
         end
@@ -82,6 +84,7 @@ local function getFontListFromAss(filePath)
             if starts_with(fontname, '@') then
                 fontname = string.sub(fontname, 2)
             end
+            log.debug("found font: "..fontname)
             table.insert(fontList, fontname)
             goto continue
         end
@@ -126,6 +129,7 @@ local function getFontListFromAss(filePath)
                                 fontname = string.sub(fontname, 2)
                             end
                             table.insert(fontList, fontname)
+                            log.debug("found font: "..fontname)
                         end
                         if findFont and c ~= "\\" then
                             table.insert(fontnameCharArr, c)

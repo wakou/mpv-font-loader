@@ -10,11 +10,12 @@
 
 ## 注意事项
 
-1. 需要预先使用FontLoaderSub生成fc-subs.db文件
-2. Windows用户需要额外安装[**busybox**](https://frippery.org/busybox/), 并正确配置PATH环境变量
-3. mpv最低版本需要为0.36.0
-4. 安装完成后初次打开mpv会卡3-5s的时间, 这是脚本在解析fc-subs.db的内容, 之后再使用就不会卡顿了
-5. 字幕文件中标注的字体较多时, 切换会卡一下(自测只在Windows上出现此问题)
+1. 目前只支持UTF-8编码的ass字幕文件
+2. 需要预先使用FontLoaderSub生成fc-subs.db文件
+3. Windows用户需要额外安装[**busybox**](https://frippery.org/busybox/), 并正确配置PATH环境变量
+4. mpv最低版本需要为0.36.0
+5. 安装完成后初次打开mpv会卡3-5s的时间, 这是脚本在解析fc-subs.db的内容, 之后再使用就不会卡顿了
+6. 字幕文件中标注的字体较多时, 切换会卡一下(自测只在Windows上出现此问题)
 
 ## 原理
 

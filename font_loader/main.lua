@@ -35,7 +35,7 @@ local common = require "common"
 local options = {
     fontDir = "",
     idxDbName = "fc-subs.db",
-    idxCacheFile = "~~/font-index",
+    fontIndexFile = "~~/font-index",
     cacheDir = "~~/fontCache/"
 }
 
@@ -47,24 +47,24 @@ local baseCacheDir = mp.command_native({ "expand-path", options.cacheDir })
 log.info("create base cache dir: " .. baseCacheDir)
 common.mkdir(baseCacheDir)
 
-local idxCacheFile = mp.command_native({ "expand-path", options.idxCacheFile })
+local fontIndexFile = mp.command_native({ "expand-path", options.fontIndexFile })
 
-local idxCacheExist = utils.file_info(idxCacheFile) ~= nil
+local idxFileExist = utils.file_info(fontIndexFile) ~= nil
 local fontIndex
 
-if cbor == nil or not idxCacheExist then
+if cbor == nil or not idxFileExist then
     local fontIdxDb = utils.join_path(fontDir, options.idxDbName)
     log.info("no fount index cache file, build index from fc-subs.db")
     fontIndex = fc.buildIndex(fontIdxDb)
     log.info("build index end")
 end
 
-if cbor ~= nil and idxCacheExist then
+if cbor ~= nil and idxFileExist then
     log.info("load font index data from index cache file with lua-cbor")
-    fontIndex = fc.loadIdx(idxCacheFile)
+    fontIndex = fc.loadIdx(fontIndexFile)
 else
     log.info("store font index data to cache file")
-    fc.saveIdxToFile(fontIndex, idxCacheFile)
+    fc.saveIdxToFile(fontIndex, fontIndexFile)
 end
 
 local cacheKey = os.date("%Y%m%d%H%M%S_") .. common.randomString(6)
