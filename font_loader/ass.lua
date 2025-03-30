@@ -57,11 +57,9 @@ local function getFontListFromAss(filePath)
     local eventTextCommaIndex = -1;
 
     for line in file:lines() do
-        log.debug(string.lower(string.sub(line, 1, 11)))
-        if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
+                if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
             or string.lower(string.sub(line, 1, 12)) == "[v4+ styles]" then
-            log.debug("wvfwqvq")
-            section = "Styles"
+                        section = "Styles"
             goto continue
         end
 
