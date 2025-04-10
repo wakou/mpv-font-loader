@@ -1,3 +1,42 @@
+local win = mp.get_property("platform") == "windows" and true or false;
+
+local function createLinkArgsWin(sourceFile, linkFile)
+    local sourceFile1 = sourceFile:gsub("/", "\\")
+    local linkFile1 = linkFile:gsub("/", "\\")
+    return { "cmd", "/c", "mklink", linkFile1, sourceFile1 }
+end
+
+local function createLinkArgs(sourceFile, linkFile)
+    return { "ln", "-s", sourceFile, linkFile }
+end
+
+local function removeLinkArgsWin(linkFile)
+    local linkFile1 = linkFile:gsub("/", "\\")
+    return { "cmd", "/c", "del", linkFile1 }
+end
+
+local function removeLinkArgs(linkFile)
+    return { "unlink", linkFile }
+end
+
+local function createDirArgsWin(dirPath)
+    local dirPath1 = dirPath:gsub("/", "\\")
+    return { "cmd", "/c", "mkdir", dirPath1 }
+end
+
+local function createDirArgs(dirPath)
+    return { "mkdir", "-p", dirPath }
+end
+
+local function removeEmptyDirArgsWin(dirPath)
+    local dirPath1 = dirPath:gsub("/", "\\")
+    return { "cmd", "/c", "rmdir", dirPath1 }
+end
+
+local function removeEmptyDirArgs(dirPath)
+    return { "rmdir", dirPath }
+end
+
 local function createSymbolLink(sourceFile, linkFile)
     local r = mp.command_native({
         name = "subprocess",
@@ -8,11 +47,13 @@ local function createSymbolLink(sourceFile, linkFile)
 end
 
 local function removeEmptyDir(dirPath)
+    local command = win and removeEmptyDirArgsWin or removeEmptyDirArgs
     local r = mp.command_native({
         name = "subprocess",
         playback_only = false,
-        capture_stdout = true,
-        args = { "rmdir", dirPath }
+        capture_stdout = false,
+        detach = true,
+        args = command(dirPath)
     })
     return r.status == 0
 end
