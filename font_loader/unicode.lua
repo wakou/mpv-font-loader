@@ -1,17 +1,7 @@
+local bit = require "bit"
+
 local unicode = {}
-
 local powOfTwo = { [0] = 1, [1] = 2, [2] = 4, [3] = 8, [4] = 16, [5] = 32, [6] = 64, [12] = 4096, [18] = 262144 }
-
-local function bitRight(num, pos)
-    if num > 0xFF then return nil end
-    return math.floor(num / powOfTwo[pos])
-end
-
-local function bitSubFromEnd(num, start, len)
-    local tmp1 = math.floor(num / powOfTwo[start - 1])
-    return math.fmod(tmp1, powOfTwo[len])
-end
-
 
 function unicode.fromUTF16(buf, size)
     local codePointList = {}
@@ -20,23 +10,25 @@ function unicode.fromUTF16(buf, size)
         local codeUnit = buf[i]
         local low = codeUnit[1]
         local high = codeUnit[2]
-        local byte4Check = bitRight(high, 3) == 0x1B
+        local byte4Check = bit.rshift(high, 3) == 0x1B
         if not byte4Check then
-            local codePoint = math.floor(high * 256 + low)
+            local codePoint = bit.lshift(high, 8) + low
             table.insert(codePointList, codePoint)
         else
-            local highProxyCheck = bitRight(high, 2) == 0x36
-            local lowProxyCheck = bitRight(high, 2) == 0x37
+            local highProxyCheck = bit.rshift(high, 2) == 0x36
+            local lowProxyCheck = bit.rshift(high, 2) == 0x37
             if highProxyCheck and i == #buf then
                 return codePointList, codeUnit
             end
-            if highProxyCheck then highSurrogate = math.floor((high - 0xD8) * 256 + low) end
+            if highProxyCheck then
+                highSurrogate = bit.lshift(high - 0xD8, 8) + low
+            end
             if lowProxyCheck then
                 if highSurrogate == nil then
                     goto continue
                 end
-                local lowSurrogate = math.floor((high - 0xDC) * 256 + low);
-                local codePoint = math.floor((highSurrogate + 1) * 65536 + lowSurrogate)
+                local lowSurrogate = bit.lshift(high - 0xDC, 8) + low
+                local codePoint = bit.lshift(highSurrogate + 1, 16) + lowSurrogate
                 highSurrogate = nil
                 table.insert(codePointList, codePoint)
             end
@@ -50,16 +42,16 @@ end
 function unicode.toUTF16(codePoint)
     if codePoint > 65535 then
         local a = codePoint - 65536
-        local first = math.floor(a / 1024)
-        local second = math.fmod(a, 1024)
-        local firstLow = math.fmod(first, 256)
-        local firstHigh = math.floor(first / 256) + 0xDB
-        local secondLow = math.fmod(second, 256)
-        local secondHigh = math.floor(second / 256) + 0xDC
+        local first = bit.rshift(a, 10)
+        local second = bit.band(a, 1024)
+        local firstLow = bit.band(first, 256)
+        local firstHigh = bit.rshift(first, 8) + 0xDB
+        local secondLow = bit.band(second, 256)
+        local secondHigh = bit.rshift(second, 8) + 0xDC
         return firstLow, firstHigh, secondLow, secondHigh
     else
-        local high = math.floor(codePoint / 256)
-        local low = math.fmod(codePoint,256)
+        local high = bit.rshift(codePoint, 8)
+        local low = bit.band(codePoint, 256)
         return low, high
     end
 end
@@ -78,7 +70,7 @@ function unicode.fromUTF8(str)
         end
         if byte >= 128 and byte <= 191 then
             if buf ~= nil then
-                buf = buf * 64 + byte - 128
+                buf = bit.lshift(buf, 6) + byte - 128
                 codeUnitSize = codeUnitSize + 1
             end
         end
@@ -159,14 +151,14 @@ function unicode.toUTF8(codePointList)
         end
         local byteU8 = {}
         for index = 1, byteCount - 1 do
-            local codeUnit = 128 + bitSubFromEnd(codePoint, (index - 1) * 6 + 1, 6)
+            local codeUnit = 128 + bit.band(bit.rshift(codePoint, (index - 1) * 6), 63)
             table.insert(byteU8, codeUnit);
         end
-        local firstUnitNum = math.floor(codePoint / powOfTwo[(byteCount - 1) * 6])
+        local firstUnitNum = bit.rshift(codePoint, (byteCount - 1) * 6)
         if not (firstUnitNum < powOfTwo[7 - byteCount]) then
             break
         end
-        local firstUnitMask = (powOfTwo[byteCount + 1] - 2) * powOfTwo[7 - byteCount]
+        local firstUnitMask = bit.lshift(powOfTwo[byteCount + 1] - 2,7 - byteCount)
         local codeUnit = firstUnitMask + firstUnitNum
         table.insert(byteArray, string.char(codeUnit));
         while #byteU8 > 0 do
