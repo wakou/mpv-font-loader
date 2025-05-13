@@ -1,11 +1,9 @@
 local log = require "mp.msg"
+local line_iter = require "line_iter"
+local uchardet = require "uchardet"
 
 local function starts_with(str, start)
     return str:sub(1, #start) == start
-end
-
-local function ends_with(str, ending)
-    return ending == "" or str:sub(- #ending) == ending
 end
 
 local function trim(s)
@@ -46,20 +44,26 @@ end
 local function getFontListFromAss(filePath)
     log.info("parse sub file: ", filePath)
     local fontList = {}
-    local file = assert(io.open(filePath, "r"))
 
-    if file == nil then
-        return
+    local encoding = uchardet.checkEncoding(filePath)
+    log.info("check sub file [" .. filePath .. "] encoding: " .. encoding)
+    local assFile = assert(io.open(filePath, 'rb'))
+    local des = nil
+    local iter = assFile.lines
+    local iterParam = assFile
+    if encoding ~= 'UTF-8' then
+        des = line_iter:new(encoding, assFile)
+        iter = des.next
+        iterParam = des
     end
-
     local section = nil
-    local styleFontnameIndex = -1;
-    local eventTextCommaIndex = -1;
+    local styleFontnameIndex = -1
+    local eventTextCommaIndex = -1
 
-    for line in file:lines() do
-                if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
+    for line in iter(iterParam) do
+        if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
             or string.lower(string.sub(line, 1, 12)) == "[v4+ styles]" then
-                        section = "Styles"
+            section = "Styles"
             goto continue
         end
 
@@ -82,7 +86,7 @@ local function getFontListFromAss(filePath)
             if starts_with(fontname, '@') then
                 fontname = string.sub(fontname, 2)
             end
-            log.debug("found font: "..fontname)
+            log.debug("found font: " .. fontname)
             table.insert(fontList, fontname)
             goto continue
         end
@@ -127,7 +131,7 @@ local function getFontListFromAss(filePath)
                                 fontname = string.sub(fontname, 2)
                             end
                             table.insert(fontList, fontname)
-                            log.debug("found font: "..fontname)
+                            log.debug("found font: " .. fontname)
                         end
                         if findFont and c ~= "\\" then
                             table.insert(fontnameCharArr, c)
@@ -150,10 +154,13 @@ local function getFontListFromAss(filePath)
         ::continue::
     end
 
-    file:close()
-
+    if des ~= nil then
+        des:close()
+    end
     return fontList
 end
+
+
 
 return {
     getFontListFromAss = getFontListFromAss

@@ -3,3 +3,9 @@
 
 # dependcy
 cbor.lua
+*.so
+*.dylib
+*.dll
+libs
+*.sh
+*.tar.gz

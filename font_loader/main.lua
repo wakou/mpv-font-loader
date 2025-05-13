@@ -123,6 +123,7 @@ local function loadFont(_, trackList)
         local linkFile = utils.join_path(fontCacheDir, filename)
         local sourceFile = utils.join_path(fontDir, filename);
         log.debug("create link file: " .. linkFile)
+        log.info("load font: " .. filename)
         common.link(sourceFile, linkFile)
         linkFileSize = linkFileSize + 1
         linkFileList[linkFileSize] = linkFile
@@ -141,6 +142,8 @@ local function removeCache()
     for i = 1, linkFileSize do
         local linkFile = linkFileList[i]
         log.debug("remove font link file: " .. linkFile)
+        local _, filename = utils.split_path(linkFile)
+        log.info("unload font: " .. filename)
         common.unlink(linkFile)
     end
     log.debug("remove font cache dir: " .. fontCacheDir)

@@ -1,4 +1,7 @@
-local win = mp.get_property("platform") == "windows" and true or false;
+local utils = require "mp.utils"
+local platfrom = mp.get_property("platform")
+local win = platfrom == "windows" and true or false;
+local script_path = mp.get_script_directory();
 
 local function createLinkArgsWin(sourceFile, linkFile)
     local sourceFile1 = sourceFile:gsub("/", "\\")
@@ -38,11 +41,12 @@ local function removeEmptyDirArgs(dirPath)
 end
 
 local function createSymbolLink(sourceFile, linkFile)
+    local command = win and createLinkArgsWin or createLinkArgs
     local r = mp.command_native({
         name = "subprocess",
         playback_only = false,
         capture_stdout = true,
-        args = { "ln", "-s", sourceFile, linkFile }
+        args = command(sourceFile, linkFile)
     })
 end
 
@@ -59,22 +63,24 @@ local function removeEmptyDir(dirPath)
 end
 
 local function removeLinkFile(linkFile)
+    local command = win and removeLinkArgsWin or removeLinkArgs
     local r = mp.command_native({
         name = "subprocess",
         playback_only = false,
         capture_stdout = true,
-        args = { "unlink", linkFile }
+        args = command(linkFile)
     })
     return r.status == 0
 end
 
 local function createDir(dirPath)
+    local command = win and createDirArgsWin or createDirArgs
     local r = mp.command_native({
         name = "subprocess",
         playback_only = false,
         capture_stdout = true,
         detach = true,
-        args = { "mkdir", "-p", dirPath }
+        args = command(dirPath)
     })
     return r.status == 0
 end
@@ -91,10 +97,34 @@ local function randomString(length)
     return randomString(length - 1) .. charset[math.random(1, #charset)]
 end
 
+local WIN_ICONV_NAME = "iconv.dll"
+local WIN_UCHARDET_NAME = "uchardet.dll"
+local OSX_ICONV_NAME = "libiconv.dylib"
+local OSX_UCHARDET_NAME = "libuchardet.dylib"
+local LINUX_ICONV_NAME = "libiconv.so"
+local LINUX_UCHARDET_NAME = "libuchardet.so"
+
+local iconvName, uchardetName
+if platfrom == "darwin" then
+    iconvName = OSX_ICONV_NAME
+    uchardetName = OSX_UCHARDET_NAME
+elseif platfrom == "windows" then
+    iconvName = WIN_ICONV_NAME
+    uchardetName = WIN_UCHARDET_NAME
+else
+    iconvName = LINUX_ICONV_NAME
+    uchardetName = LINUX_UCHARDET_NAME
+end
+
+local LIB_ICONV_PATH = utils.join_path(script_path, iconvName)
+local LIB_UCHARDET_PATH = utils.join_path(script_path, uchardetName)
+
 return {
     link = createSymbolLink,
     unlink = removeLinkFile,
     rmdir = removeEmptyDir,
     mkdir = createDir,
-    randomString = randomString
+    randomString = randomString,
+    LIB_ICONV_PATH = LIB_ICONV_PATH,
+    LIB_UCHARDET_PATH = LIB_UCHARDET_PATH
 };
