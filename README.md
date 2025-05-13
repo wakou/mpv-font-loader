@@ -2,9 +2,9 @@
 
 这个脚本会在mpv启动时解析字幕文件并加载相关的字体, 灵感来自[FontLoaderSub](https://github.com/yzwduck/FontLoaderSub).
 
-## 安装
+通过`uchardet`与`libiconv`实现了字幕文件编码的检测与转换, 依赖库来自[`Conan`](https://conan.io/)
 
-下载[lua-cbor](https://raw.githubusercontent.com/Zash/lua-cbor/refs/heads/master/cbor.lua)到`font_loader`目录下(从Release下载的不需要进此操作)
+## 安装
 
 ### MPV
 
@@ -31,17 +31,19 @@ IINA用户需要进入[设置]-[高级]菜单, 打开`启用高级设置`选项
 
 ## 注意事项
 
-1. **目前只支持UTF-8编码的ass字幕文件**
-2. 需要预先使用FontLoaderSub生成fc-subs.db文件
-3. mpv最低版本需要为0.36.0
-4. 安装完成后初次打开mpv会卡3-5s的时间, 这是脚本在解析fc-subs.db的内容, 之后再使用就不会卡顿了
-5. 字幕文件中标注的字体较多时, 切换会卡一下(自测只在Windows上出现此问题)
+1. 需要预先使用FontLoaderSub生成fc-subs.db文件
+2. mpv最低版本需要为0.36.0, 该版本开始支持`sub-fonts-dir`属性
+3. 安装完成后初次打开mpv会卡3-5s的时间, 这是脚本在解析fc-subs.db的内容, 之后会生成索引文件, 减少加载时间
+4. 字幕文件中标注的字体较多时, 切换会卡一下(自测只在Windows上出现此问题)
+
+## 实现思路
+
+利用了mpv的`sub-fonts-dir`属性. 视频文件载入时, 创建一个临时文件夹, 扫描并解析加载的外置字幕文件所使用的字体, 在文件夹中创建相关字体文件的符号链接, 将该文件夹的路径赋给mpv的`sub-fonts-dir`属性, mpv将会加载该属性所指文件夹中的字体
 
 ## TODO
 
-* [ ] 支持UTF16编码字幕文件
-* [ ] 支持GBK编码字幕文件
-
-## 原理
-
-创建一个临时文件夹, 在文件夹中创建相关字体文件的符号链接, 将该文件夹的路径赋给mpv的`sub-fonts-dir`属性
+* [x] 支持UTF16编码字幕文件
+* [x] 支持GBK编码字幕文件
+* [x] 支持其它编码格式
+* [ ] 实现`fc-subs.db`文件的变动检查, 并自动更新字体索引文件
+* [ ] 实现字体库文件夹的扫描, 去除对`fc-subs.db`文件的依赖
