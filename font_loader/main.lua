@@ -102,28 +102,29 @@ local function loadFont(_, trackList)
         local file = subFileList[i]
         assFileSet[file] = false
         local fontList = ass.getFontListFromAss(file) or {}
-        for _, font in pairs(fontList) do
-            if fontSet[font] == nil then
-                local fontFromIdx = fontIndex[font]
+        for _, face in pairs(fontList) do
+            if fontSet[face] == nil then
+                local fontFromIdx = fontIndex[face]
                 if fontFromIdx ~= nil then
-                    newFont[fontFromIdx.filename] = true
+                    newFont[fontFromIdx.filepath] = fontFromIdx.filename
                     newFontSize = newFontSize + 1
-                    for _, face in pairs(fontFromIdx.faces) do
-                        fontSet[face] = true
+                    for _, face1 in pairs(fontFromIdx.faces) do
+                        fontSet[face1] = true
                     end
                 else
-                    fontSet[font] = false
-                    log.warn("font not find: " .. font)
+                    fontSet[face] = false
+                    log.warn("font not find: " .. face)
                 end
             end
         end
     end
 
-    for filename, _ in pairs(newFont) do
-        local linkFile = utils.join_path(fontCacheDir, filename)
-        local sourceFile = utils.join_path(fontDir, filename);
+    for filepath, filename in pairs(newFont) do
+        local linkFileName = filepath == filename and filename or filepath:gsub('/', '-')
+        local linkFile = utils.join_path(fontCacheDir, linkFileName)
+        local sourceFile = utils.join_path(fontDir, filepath);
         log.debug("create link file: " .. linkFile)
-        log.info("load font: " .. filename)
+        log.info("load font: " .. filepath)
         common.link(sourceFile, linkFile)
         linkFileSize = linkFileSize + 1
         linkFileList[linkFileSize] = linkFile

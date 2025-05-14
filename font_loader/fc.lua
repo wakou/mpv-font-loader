@@ -21,7 +21,7 @@ local function buildIndex(cacheFile)
     log.info("db info: [" .. fileCount .. "] font file, [" .. faceCount .. "] font face")
     local block = 3000
 
-    local font = { filename = nil, ver = nil, type = nil, faces = {} }
+    local font = { filepath = nil, filename = nil, ver = nil, type = nil, faces = {} }
     local buf = {}
     local bufIndex = 1;
     local fontIndex = {}
@@ -37,7 +37,7 @@ local function buildIndex(cacheFile)
             end
             if low == 0 and high == 0 then
                 if bufIndex == 1 then
-                    font = { filename = nil, ver = nil, type = nil, faces = {} }
+                    font = { filepath = nil, filename = nil, ver = nil, type = nil, faces = {} }
                     goto continue
                     -- break
                 end
@@ -46,8 +46,11 @@ local function buildIndex(cacheFile)
                 bufIndex = 1
                 local utf8str = table.concat(unicode.toUTF8(codePointList))
 
-                if font.filename == nil then
-                    font.filename = utf8str
+                if font.filepath == nil then
+                    local t1 = string.find(utf8str, "\\[^\\]*$") or 1
+                    font.filename = utf8str:sub(t1 + 1, -1)
+                    font.filepath = utf8str:gsub("\\", '/')
+                    fontIndex[font.filename] = font
                 else
                     -- \tt type
                     if utf8str:byte(1, 2) == 9 and utf8str:byte(2, 3) == 116 then
