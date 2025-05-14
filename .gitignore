@@ -9,3 +9,4 @@ cbor.lua
 libs
 *.sh
 *.tar.gz
+inspect.lua
