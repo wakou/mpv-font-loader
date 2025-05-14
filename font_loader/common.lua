@@ -3,42 +3,58 @@ local platfrom = mp.get_property("platform")
 local win = platfrom == "windows" and true or false;
 local script_path = mp.get_script_directory();
 
-local function createLinkArgsWin(sourceFile, linkFile)
-    local sourceFile1 = sourceFile:gsub("/", "\\")
-    local linkFile1 = linkFile:gsub("/", "\\")
-    return { "cmd", "/c", "mklink", linkFile1, sourceFile1 }
+local busybox = utils.join_path(script_path, "busybox.exe")
+local busyboxInfo = utils.file_info(busybox)
+local useBusybox = false
+
+if busyboxInfo ~= nil then
+    useBusybox = true
 end
 
 local function createLinkArgs(sourceFile, linkFile)
     return { "ln", "-s", sourceFile, linkFile }
 end
 
-local function removeLinkArgsWin(linkFile)
-    local linkFile1 = linkFile:gsub("/", "\\")
-    return { "cmd", "/c", "del", linkFile1 }
-end
-
 local function removeLinkArgs(linkFile)
     return { "unlink", linkFile }
-end
-
-local function createDirArgsWin(dirPath)
-    local dirPath1 = dirPath:gsub("/", "\\")
-    return { "cmd", "/c", "mkdir", dirPath1 }
 end
 
 local function createDirArgs(dirPath)
     return { "mkdir", "-p", dirPath }
 end
 
-local function removeEmptyDirArgsWin(dirPath)
-    local dirPath1 = dirPath:gsub("/", "\\")
-    return { "cmd", "/c", "rmdir", dirPath1 }
-end
-
 local function removeEmptyDirArgs(dirPath)
     return { "rmdir", dirPath }
 end
+
+local function createLinkArgsWin(sourceFile, linkFile)
+    local sourceFile1 = sourceFile:gsub("/", "\\")
+    local linkFile1 = linkFile:gsub("/", "\\")
+    return useBusybox and { busybox, table.unpack(createLinkArgs(sourceFile1, linkFile), 1, 4) }
+        or { "cmd", "/c", "mklink", linkFile1, sourceFile1 }
+end
+
+
+local function removeLinkArgsWin(linkFile)
+    local linkFile1 = linkFile:gsub("/", "\\")
+    return useBusybox and { busybox, table.unpack(removeLinkArgs(linkFile1), 1, 2) }
+        or { "cmd", "/c", "del", linkFile1 }
+end
+
+
+local function createDirArgsWin(dirPath)
+    local dirPath1 = dirPath:gsub("/", "\\")
+    return useBusybox and { busybox, table.unpack(createDirArgs(dirPath1), 1, 3) }
+        or { "cmd", "/c", "mkdir", dirPath1 }
+end
+
+
+local function removeEmptyDirArgsWin(dirPath)
+    local dirPath1 = dirPath:gsub("/", "\\")
+    return useBusybox and { busybox, table.unpack(removeEmptyDirArgs(dirPath1), 1, 2) }
+        or { "cmd", "/c", "rmdir", dirPath1 }
+end
+
 
 local function createSymbolLink(sourceFile, linkFile)
     local command = win and createLinkArgsWin or createLinkArgs
