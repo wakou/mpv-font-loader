@@ -27,6 +27,10 @@ local function removeEmptyDirArgs(dirPath)
     return { "rmdir", dirPath }
 end
 
+local function removeFileArgs(filePath)
+    return { "rm", filePath }
+end
+
 local function createLinkArgsWin(sourceFile, linkFile)
     local sourceFile1 = sourceFile:gsub("/", "\\")
     local linkFile1 = linkFile:gsub("/", "\\")
@@ -55,6 +59,12 @@ local function removeEmptyDirArgsWin(dirPath)
         or { "cmd", "/c", "rmdir", dirPath1 }
 end
 
+local function removeFileArgsWin(filePath)
+    local filePath1 = filePath:gsub("/", "\\")
+    return useBusybox and { busybox, table.unpack(removeFileArgs(filePath1), 1, 2) }
+        or { "cmd", "/c", "del", filePath1 }
+end
+
 
 local function createSymbolLink(sourceFile, linkFile)
     local command = win and createLinkArgsWin or createLinkArgs
@@ -74,6 +84,18 @@ local function removeEmptyDir(dirPath)
         capture_stdout = false,
         detach = true,
         args = command(dirPath)
+    })
+    return r.status == 0
+end
+
+local function removeFile(filePath)
+    local command = win and removeFileArgsWin or removeFileArgs
+    local r = mp.command_native({
+        name = "subprocess",
+        playback_only = false,
+        capture_stdout = false,
+        detach = true,
+        args = command(filePath)
     })
     return r.status == 0
 end
@@ -140,6 +162,7 @@ return {
     unlink = removeLinkFile,
     rmdir = removeEmptyDir,
     mkdir = createDir,
+    rm = removeFile,
     randomString = randomString,
     LIB_ICONV_PATH = LIB_ICONV_PATH,
     LIB_UCHARDET_PATH = LIB_UCHARDET_PATH

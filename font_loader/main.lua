@@ -48,23 +48,30 @@ log.info("create base cache dir: " .. baseCacheDir)
 common.mkdir(baseCacheDir)
 
 local fontIndexFile = mp.command_native({ "expand-path", options.fontIndexFile })
+local updateFlagFile = mp.command_native({ "expand-path", utils.join_path(fontDir, "update.txt") });
 
 local idxFileExist = utils.file_info(fontIndexFile) ~= nil
+local updateFlag = utils.file_info(updateFlagFile) ~= nil
 local fontIndex
 
-if cbor == nil or not idxFileExist then
+if cbor == nil or not idxFileExist or updateFlag then
     local fontIdxDb = utils.join_path(fontDir, options.idxDbName)
-    log.info("no fount index cache file, build index from fc-subs.db")
+    log.info("build index from fc-subs.db")
     fontIndex = fc.buildIndex(fontIdxDb)
     log.info("build index end")
 end
 
-if cbor ~= nil and idxFileExist then
-    log.info("load font index data from index cache file with lua-cbor")
+if cbor ~= nil and idxFileExist and not updateFlag then
+    log.info("load font index data from index cache file [" .. fontIndexFile .. "] with lua-cbor")
     fontIndex = fc.loadIdx(fontIndexFile)
 else
     log.info("store font index data to cache file")
     fc.saveIdxToFile(fontIndex, fontIndexFile)
+end
+
+if updateFlag then
+    common.rm(updateFlagFile)
+    log.info("remove update flag file")
 end
 
 local cacheKey = os.date("%Y%m%d%H%M%S_") .. common.randomString(6)
