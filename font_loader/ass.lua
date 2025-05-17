@@ -1,6 +1,6 @@
 local log = require "mp.msg"
-local line_iter = require "line_iter"
 local uchardet = require "uchardet"
+local line_iter = require "line_iter"
 
 local function starts_with(str, start)
     return str:sub(1, #start) == start
@@ -45,17 +45,21 @@ local function getFontListFromAss(filePath)
     log.info("parse sub file: ", filePath)
     local fontList = {}
 
-    local encoding = uchardet.checkEncoding(filePath)
-    log.info("check sub file [" .. filePath .. "] encoding: " .. encoding)
     local assFile = assert(io.open(filePath, 'rb'))
-    local des = nil
     local iter = assFile.lines
     local iterParam = assFile
-    if encoding ~= 'UTF-8' then
-        des = line_iter:new(encoding, assFile)
-        iter = des.next
-        iterParam = des
+
+    if uchardet.status then
+        local encoding = uchardet.checkEncoding(filePath)
+        log.info("check sub file [" .. filePath .. "] encoding: " .. encoding)
+        local des = nil
+        if encoding ~= 'UTF-8' then
+            des = line_iter:new(encoding, assFile)
+            iter = des.next
+            iterParam = des
+        end
     end
+
     local section = nil
     local styleFontnameIndex = -1
     local eventTextCommaIndex = -1

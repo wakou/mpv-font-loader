@@ -1,18 +1,26 @@
 local ffi = require "ffi"
 local common = require "common"
+local utils = require "mp.utils"
+
+local LIB_ICONV_PATH = common.LIB_ICONV_PATH
+
+if utils.file_info(LIB_ICONV_PATH) == nil then
+    return { status = false }
+end
+
 ffi.cdef [[
     typedef void* iconv_t;
     iconv_t libiconv_open(const char* tocode, const char* fromcode);
     iconv_t libiconv(iconv_t cd,  char** inbuf, size_t *inbytesleft, char** outbuf, size_t *outbytesleft);
     iconv_t libiconv_close(iconv_t cd);
 ]];
-local LIB_ICONV_PATH = common.LIB_ICONV_PATH
+
 LIB_ICONV = ffi.load(LIB_ICONV_PATH)
 local iconv_open = LIB_ICONV.libiconv_open
 local iconv_close = LIB_ICONV.libiconv_close
 local convert = LIB_ICONV.libiconv
 
-local iconv = {}
+local iconv = { status = status }
 
 function iconv:iconv(str)
     local inLen = string.len(str);

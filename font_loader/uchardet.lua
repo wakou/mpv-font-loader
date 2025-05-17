@@ -1,6 +1,11 @@
 local ffi = require "ffi"
 local common = require "common"
+local utils = require "mp.utils"
 local LIB_UCHARDET_PATH = common.LIB_UCHARDET_PATH
+
+if utils.file_info(LIB_UCHARDET_PATH) == nil then
+    return { status = false }
+end
 
 ffi.cdef [[
     typedef void* uchardet_t;
@@ -14,7 +19,6 @@ ffi.cdef [[
 LIB_UCHARDET = ffi.load(LIB_UCHARDET_PATH)
 
 local function checkEncoding(filePath)
-
     local assFile = assert(io.open(filePath, 'rb'))
     local BUFFER_SIZE = 65535
     local ud = LIB_UCHARDET.uchardet_new()
@@ -31,4 +35,4 @@ local function checkEncoding(filePath)
     return detRet == 'ASCII' and 'UTF-8' or detRet
 end
 
-return { checkEncoding = checkEncoding }
+return { checkEncoding = checkEncoding, status = status }
