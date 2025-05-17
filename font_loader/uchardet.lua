@@ -35,4 +35,4 @@ local function checkEncoding(filePath)
     return detRet == 'ASCII' and 'UTF-8' or detRet
 end
 
-return { checkEncoding = checkEncoding, status = status }
+return { checkEncoding = checkEncoding, status = true }

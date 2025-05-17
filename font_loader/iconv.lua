@@ -20,7 +20,7 @@ local iconv_open = LIB_ICONV.libiconv_open
 local iconv_close = LIB_ICONV.libiconv_close
 local convert = LIB_ICONV.libiconv
 
-local iconv = { status = status }
+local iconv = { status = true }
 
 function iconv:iconv(str)
     local inLen = string.len(str);
