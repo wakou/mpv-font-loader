@@ -127,7 +127,7 @@ local function getFontListFromAss(filePath)
                 local fontnameCharArr = {}
                 for c in text:gmatch "." do
                     if styleOverride then
-                        if findFont and c == "\\" then
+                        if findFont and (c == "\\" or c == "}") then
                             findFont = false
                             local fontname = table.concat(fontnameCharArr)
                             fontnameCharArr = {}
