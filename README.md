@@ -4,6 +4,16 @@
 
 通过`uchardet`与`libiconv`实现了字幕文件编码的检测与转换, 依赖库来自[`Conan`](https://conan.io/)
 
+## 其它实现方案
+
+根据[Issue #3](https://github.com/wakou/mpv-font-loader/issues/3)的描述, 可以通过修改sub-font-provider属性为fontconfig, 以及编辑fonts.conf配置文件来自定义字体目录
+
+Windows平台下, 需要修改sub-font-provider属性及fonts.conf配置文件
+
+Linux平台下sub-font-provider属性默认为fontconfig, 只需修改fonts.conf配置文件
+
+macOS平台下libass编译时可能未启用fontconfig支持, 这种情况下需要自己编译并替换libass库文件
+
 ## 安装
 
 Windows用户须先参考`关于在Windows下使用的特别说明`进行授权操作
