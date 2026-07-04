@@ -31,12 +31,14 @@ local fc = require "fc"
 local ass = require "ass"
 local cbor = require "cbor"
 local common = require "common"
+local fontLog = require "log"
 
 local options = {
     fontDir = "",
     idxDbName = "fc-subs.db",
     fontIndexFile = "~~/font-index",
-    cacheDir = "~~/fontCache/"
+    cacheDir = "~~/fontCache/",
+    log = false
 }
 
 require "mp.options".read_options(options, "font_loader")
@@ -79,6 +81,10 @@ local fontCacheDir = utils.join_path(baseCacheDir, cacheKey)
 log.info("create font cache dir, path is: " .. fontCacheDir)
 common.mkdir(fontCacheDir)
 
+if options.log then
+    fontLog.setup(cacheKey, baseCacheDir)
+end
+
 local assFileSet = {}
 local fontSet = {}
 local linkFileList = {}
@@ -110,24 +116,55 @@ local function loadFont(_, trackList)
     local newFont = {}
     local newFontSize = 0
 
+    -- write video path once per session
+    if options.log then
+        fontLog.video(mp.get_property("path") or "")
+    end
+
     for i = 1, subFileSize do
         local file = subFileList[i]
         assFileSet[file] = false
         local fontList = ass.getFontListFromAss(file) or {}
+
+        local requiredFonts = {}
+        local loadedFonts = {}
+        local failedFonts = {}
+        local seenFace = {}
+
         for _, face in pairs(fontList) do
-            if fontSet[face] == nil then
+            if seenFace[face] then goto continue_face end
+            seenFace[face] = true
+            table.insert(requiredFonts, face)
+            local status = fontSet[face]
+            if status == nil then
+                -- first encounter
                 local fontFromIdx = fontIndex[face]
                 if fontFromIdx ~= nil then
                     newFont[fontFromIdx.filepath] = fontFromIdx.filename
                     newFontSize = newFontSize + 1
+                    table.insert(loadedFonts, face .. " -> " .. fontFromIdx.filepath)
                     for _, face1 in pairs(fontFromIdx.faces) do
                         fontSet[face1] = true
                     end
                 else
                     fontSet[face] = false
+                    table.insert(failedFonts, face)
                     log.warn("font not find: " .. face)
                 end
+            elseif status == true then
+                -- already loaded by a previous subtitle
+                local fontFromIdx = fontIndex[face]
+                table.insert(loadedFonts, face .. " -> " .. fontFromIdx.filepath)
+            else
+                -- already failed in a previous subtitle
+                table.insert(failedFonts, face)
             end
+            ::continue_face::
+        end
+
+        -- write log for this subtitle file
+        if options.log then
+            fontLog.subtitle(file, requiredFonts, loadedFonts, failedFonts)
         end
     end
 

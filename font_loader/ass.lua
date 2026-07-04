@@ -48,11 +48,11 @@ local function getFontListFromAss(filePath)
     local assFile = assert(io.open(filePath, 'rb'))
     local iter = assFile.lines
     local iterParam = assFile
+    local des = nil
 
     if uchardet.status then
         local encoding = uchardet.checkEncoding(filePath)
         log.info("check sub file [" .. filePath .. "] encoding: " .. encoding)
-        local des = nil
         if encoding ~= 'UTF-8' then
             des = line_iter:new(encoding, assFile)
             iter = des.next
