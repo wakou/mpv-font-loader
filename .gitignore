@@ -10,3 +10,7 @@ libs
 *.sh
 *.tar.gz
 inspect.lua
+
+.reasonix/
+reasonix.toml
+.vscode/
