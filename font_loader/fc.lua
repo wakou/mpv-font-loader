@@ -1,6 +1,6 @@
 local log = require "mp.msg"
 local unicode = require "unicode"
-local cbor = require "cbor"
+local utils = require "mp.utils"
 
 local function byte2uint32(num1, num2, num3, num4)
     return num1 + num2 * 2 ^ 8 + num3 * 2 ^ 16 + num4 * 2 ^ 24
@@ -54,11 +54,11 @@ local function buildIndex(cacheFile)
                 else
                     -- \tt type
                     if utf8str:byte(1, 2) == 9 and utf8str:byte(2, 3) == 116 then
-                        font.type = utf8str:sub(2)
+                        font.type = utf8str:sub(4)
                     else
                         -- \tv version
                         if utf8str:byte(1, 2) == 9 and utf8str:byte(2, 3) == 118 then
-                            font.ver = utf8str:sub(2)
+                            font.ver = utf8str:sub(4)
                         else
                             -- face
                             local face = utf8str
@@ -79,29 +79,29 @@ local function buildIndex(cacheFile)
 end
 
 local function saveIdxToFile(fontIndex, idxFile)
-    local fontSet = {}
+    local saved = {}
     local data = {}
     local size = 0
-    for key, font in pairs(fontIndex) do
-        if fontSet[key] ~= nil then
-            goto continue
-        end
+    for _, font in pairs(fontIndex) do
+        if saved[font] then goto continue end
+        saved[font] = true
         size = size + 1
         data[size] = font
-        for _, face in pairs(font.faces) do
-            fontSet[face] = true
-        end
         ::continue::
     end
-    assert(cbor)
+    assert(data ~= nil)
     local cacheFile = assert(io.open(idxFile, "w"))
-    cacheFile:write(cbor.encode(data))
+    cacheFile:write(utils.format_json(data))
     cacheFile:close()
 end
 
 local function loadIdx(idxFile)
     local fontIndex = {}
-    local data = cbor.decode_file(io.open(idxFile, "r"))
+    local fh = assert(io.open(idxFile, "r"))
+    local content = fh:read("*a")
+    fh:close()
+    local data = utils.parse_json(content)
+    assert(data ~= nil)
     local size = 0
     for i = 1, #data do
         local font = data[i]

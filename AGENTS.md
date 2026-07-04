@@ -6,7 +6,7 @@ mpv 的 Lua 脚本，播放视频时自动解析 ASS 字幕并加载所需字体
 
 - **栈**: Lua (LuaJIT + FFI), 运行于 mpv 内
 - **入口点**: `font_loader/main.lua`
-- **依赖** (运行时携带): libuchardet / libiconv (FFI)、lua-cbor (CBOR 序列化)
+- **依赖** (运行时携带): libuchardet / libiconv (FFI)
 - **无构建系统 / 无测试框架** — 纯脚本项目，拷贝到 mpv `scripts` 目录安装
 
 ## 命令
@@ -33,8 +33,8 @@ mpv 的 Lua 脚本，播放视频时自动解析 ASS 字幕并加载所需字体
 ### 核心流程
 
 1. 读取 `font_loader.conf` → 获取 `fontDir` / `cacheDir` / `fontIndexFile`
-2. 检查 `font-index` 缓存文件；若不存在或有 `update.txt` 标记，从 `fc-subs.db` 重建索引
-3. 将索引缓存为 CBOR 文件
+2. 检查 `font-index` 缓存文件；若不存在或 `fc-subs.db` 较新，自动重建索引
+3. 将索引缓存为 JSON 文件
 4. 创建随机时间戳临时目录作为字体缓存
 5. 监听 `track-list` 属性 → 扫描外挂字幕轨道 → 解析 ASS 提取字体名 → 索引中查找 → 在临时目录创建符号链接
 6. 设置 `sub-fonts-dir` 为临时目录路径
@@ -53,5 +53,5 @@ mpv 的 Lua 脚本，播放视频时自动解析 ASS 字幕并加载所需字体
 
 ## 待实现功能 (TODO)
 
-- [ ] `fc-subs.db` 文件变动检查并自动更新字体索引
+- [x] `fc-subs.db` 文件变动检查并自动更新字体索引
 - [ ] 扫描字体库文件夹，去除对 `fc-subs.db` 的依赖

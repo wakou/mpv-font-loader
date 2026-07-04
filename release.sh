@@ -78,8 +78,6 @@ declare -A ICONV_REV=(
 )
 ICONV_RECIPE_REV="6777b6045492997dd87e1f55a027e551"
 
-CBOR_URL="https://luarocks.org/manifests/zash/lua-cbor-1.0.0-1.src.rock"
-
 PLATFORM_KEY="${TARGET_OS}-${TARGET_ARCH}"
 
 # ─── 工作目录 ───────────────────────────────────────────────
@@ -148,14 +146,6 @@ mkdir -p "$OUT_DIR"
 
 echo ">>> 复制 Lua 脚本..."
 cp "${SCRIPT_DIR}/font_loader/"*.lua "$OUT_DIR/"
-
-# ─── 下载 cbor.lua ──────────────────────────────────────────
-
-echo ">>> 下载 cbor.lua..."
-curl -fsSL "$CBOR_URL" -o "${BUILD_DIR}/cbor.rock"
-unzip -p "${BUILD_DIR}/cbor.rock" 'lua-cbor-1.0.0.tar.gz' \
-    | tar -xzf - --to-stdout 'lua-cbor-1.0.0/cbor.lua' > "${OUT_DIR}/cbor.lua"
-echo "    完成: cbor.lua"
 
 # ─── 下载 libuchardet ───────────────────────────────────────
 
