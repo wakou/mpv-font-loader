@@ -88,13 +88,18 @@ local function scanNewSubFile(trackList)
     local subFileList = {}
     local size = 0
     for _, track in pairs(trackList) do
-        if track.type == 'sub' and track.external then
+        if track.type == 'sub' and track.external and track.codec ~= 'null' then
             local path = track["external-filename"]
+            if utils.file_info(fontIndexFile) == nil then
+                log.error("sub file ["..path.."] not found")
+                goto continue
+            end
             if assFileSet[path] == nil then
                 size = size + 1
                 subFileList[size] = path
             end
         end
+        ::continue::
     end
     return subFileList, size
 end
