@@ -7,7 +7,6 @@ cbor.lua
 *.dylib
 *.dll
 libs
-*.sh
 *.tar.gz
 inspect.lua
 
