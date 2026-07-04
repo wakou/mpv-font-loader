@@ -43,12 +43,13 @@ mpv 的 Lua 脚本，播放视频时自动解析 ASS 字幕并加载所需字体
 ## 约定
 
 - **注释/文档用中文**；代码标识符、字符串用英文
+- **Git 提交信息使用英文**
 - **ASS 解析前必须通过 uchardet 检测编码 + iconv 转为 UTF-8**
 - **关键 IO 用 `assert()` 断言**；非关键路径用 `if not ...` + `log.warn/error`
 - **日志使用 `mp.msg`**：`log.info/warn/error/debug`
 - **模块化**: 每个功能一个文件，`return { ... }` 导出，`require` 引入
 - **配置**: `mp.options.read_options(options, "font_loader")` 读取，前缀对应 `font_loader.conf`
-- **跨平台文件操作**: Windows 用 `cmd /c mklink`，其他平台用 `ln -s`；可选 busybox 替代
+- **跨平台文件操作**: Windows 用 `cmd /c mklink`，其他平台用 `ln -s`
 
 ## 待实现功能 (TODO)
 
