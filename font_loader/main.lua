@@ -31,6 +31,7 @@ local options = {
     idxDbName = "fc-subs.db",
     fontIndexFile = "~~/font-index",
     cacheDir = "~~/fontCache/",
+    remoteFontDir = "",
     log = false
 }
 
@@ -42,12 +43,27 @@ local baseCacheDir = mp.command_native({ "expand-path", options.cacheDir })
 log.info("create base cache dir: " .. baseCacheDir)
 common.mkdir(baseCacheDir)
 
+-- if remote font dir is configured and available, use it instead of local
+local idxDbPath = utils.join_path(fontDir, options.idxDbName)
 local fontIndexFile = mp.command_native({ "expand-path", options.fontIndexFile })
+if options.remoteFontDir ~= "" then
+    local rdir = mp.command_native({ "expand-path", options.remoteFontDir })
+    if utils.file_info(rdir) ~= nil then
+        local rdb = utils.join_path(rdir, options.idxDbName)
+        if utils.file_info(rdb) ~= nil then
+            fontDir = rdir
+            idxDbPath = rdb
+            fontIndexFile = mp.command_native({ "expand-path", "~~/font-index-remote" })
+            log.info("use remote font dir: " .. rdir)
+        end
+    else
+        log.warn("remote font dir not accessible: " .. rdir .. ", fallback to local")
+    end
+end
 
 local idxFileExist = utils.file_info(fontIndexFile) ~= nil
 local fontIndex
 
-local idxDbPath = utils.join_path(fontDir, options.idxDbName)
 local idxDbInfo = utils.file_info(idxDbPath)
 local cacheOutdated = false
 if idxFileExist and idxDbInfo then
