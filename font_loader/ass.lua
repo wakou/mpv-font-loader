@@ -204,7 +204,7 @@ local function getFontListFromAss(filePath, context)
     end
 
     if context ~= nil then
-        context[filePath] = { styleFontMap = styleFontMap, usedSet = fontSet }
+        context.subFiles[filePath] = { styleFontMap = styleFontMap, usedSet = fontSet }
     end
 
     return fontList

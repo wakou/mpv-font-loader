@@ -21,93 +21,29 @@
 
 local utils = require "mp.utils"
 local log = require "mp.msg"
-local fc = require "fc"
-local ass = require "ass"
 local common = require "common"
+local ass = require "ass"
+local index = require "index"
 local fontReport = require "report"
 
 local options = {
     fontDir = "",
-    idxDbName = "fc-subs.db",
-    fontIndexFile = "~~/font-index",
     cacheDir = "~~/fontCache/",
     remoteFontDir = "",
     report = false
 }
 
-require "mp.options".read_options(options, "font_loader")
-
-local fontDir = mp.command_native({ "expand-path", options.fontDir })
-local baseCacheDir = mp.command_native({ "expand-path", options.cacheDir })
-
-log.info("create base cache dir: " .. baseCacheDir)
-common.mkdir(baseCacheDir)
-
--- if remote font dir is configured and available, use it instead of local
-local idxDbPath = utils.join_path(fontDir, options.idxDbName)
-local fontIndexFile = mp.command_native({ "expand-path", options.fontIndexFile })
-if options.remoteFontDir ~= "" then
-    local rdir = mp.command_native({ "expand-path", options.remoteFontDir })
-    if utils.file_info(rdir) ~= nil then
-        local rdb = utils.join_path(rdir, options.idxDbName)
-        if utils.file_info(rdb) ~= nil then
-            fontDir = rdir
-            idxDbPath = rdb
-            fontIndexFile = mp.command_native({ "expand-path", "~~/font-index-remote" })
-            log.info("use remote font dir: " .. rdir)
-        end
-    else
-        log.warn("remote font dir not accessible: " .. rdir .. ", fallback to local")
-    end
-end
-
-local idxFileExist = utils.file_info(fontIndexFile) ~= nil
-local fontIndex
-
-local idxDbInfo = utils.file_info(idxDbPath)
-local cacheOutdated = false
-if idxFileExist and idxDbInfo then
-    local cacheInfo = utils.file_info(fontIndexFile)
-    cacheOutdated = idxDbInfo.mtime > cacheInfo.mtime
-end
-
-local rebuild = not idxFileExist or cacheOutdated
-
-if rebuild then
-    log.info("build index from fc-subs.db")
-    fontIndex = fc.buildIndex(idxDbPath)
-    log.info("build index end")
-    log.info("store font index data to cache file")
-    fc.saveIdxToFile(fontIndex, fontIndexFile)
-else
-    log.info("load font index data from index cache file [" .. fontIndexFile .. "]")
-    fontIndex = fc.loadIdx(fontIndexFile)
-    log.info("load font index data from index cache file end")
-end
-
-local cacheKey = os.date("%Y%m%d%H%M%S_") .. common.randomString(6)
-local fontCacheDir = utils.join_path(baseCacheDir, cacheKey)
-log.info("create font cache dir, path is: " .. fontCacheDir)
-common.mkdir(fontCacheDir)
-
-local context = { video = "", files = {} }
-
-local assFileSet = {}
-local fontSet = {}
-local linkFileList = {}
-local linkFileSize = 0
-
-local function scanNewSubFile(trackList)
+local function scanNewSubFile(ctx, trackList)
     local subFileList = {}
     local size = 0
     for _, track in pairs(trackList) do
         if track.type == 'sub' and track.external and track.codec ~= 'null' then
             local path = track["external-filename"]
-            if utils.file_info(fontIndexFile) == nil then
-                log.error("sub file ["..path.."] not found")
+            if utils.file_info(path) == nil then
+                log.error("sub file [" .. path .. "] not found")
                 goto continue
             end
-            if assFileSet[path] == nil then
+            if ctx.assFileSet[path] == nil then
                 size = size + 1
                 subFileList[size] = path
             end
@@ -117,24 +53,27 @@ local function scanNewSubFile(trackList)
     return subFileList, size
 end
 
-
-local function loadFont(_, trackList)
-    local subFileList, subFileSize = scanNewSubFile(trackList)
+local function loadFont(ctx, trackList)
+    local subFileList, subFileSize = scanNewSubFile(ctx, trackList)
     local newFont = {}
     local newFontSize = 0
 
-    -- write video path once per session
-    if context.video == "" then
-        context.video = mp.get_property("path") or ""
-        if options.report then
-            fontReport.video(context.video, cacheKey, baseCacheDir)
+    -- detect video change and reset state
+    local curVideo = mp.get_property("path") or ""
+    if ctx.video ~= curVideo then
+        ctx.fontSet = {}
+        ctx.assFileSet = {}
+        ctx.subFiles = {}
+        ctx.video = curVideo
+        if ctx.reportEnabled then
+            fontReport.video(ctx.video, ctx.cacheKey, ctx.baseCacheDir)
         end
     end
 
     for i = 1, subFileSize do
         local file = subFileList[i]
-        assFileSet[file] = false
-        local fontList = ass.getFontListFromAss(file, context)
+        ctx.assFileSet[file] = false
+        local fontList = ass.getFontListFromAss(file, ctx)
         fontList = fontList or {}
 
         local requiredFonts = {}
@@ -146,58 +85,55 @@ local function loadFont(_, trackList)
             if seenFace[face] then goto continue_face end
             seenFace[face] = true
             table.insert(requiredFonts, face)
-            local status = fontSet[face]
+            local status = ctx.fontSet[face]
             if status == nil then
-                -- first encounter
-                local fontFromIdx = fontIndex[face]
+                local fontFromIdx = ctx.fontIndex[face]
                 if fontFromIdx ~= nil then
                     newFont[fontFromIdx.filepath] = fontFromIdx.filename
                     newFontSize = newFontSize + 1
                     table.insert(loadedFonts, face .. " -> " .. fontFromIdx.filepath)
                     for _, face1 in pairs(fontFromIdx.faces) do
-                        fontSet[face1] = true
+                        ctx.fontSet[face1] = true
                     end
                 else
-                    fontSet[face] = false
+                    ctx.fontSet[face] = false
                     table.insert(failedFonts, face)
                     log.warn("font not find: " .. face)
                 end
             elseif status == true then
-                -- already loaded by a previous subtitle
-                local fontFromIdx = fontIndex[face]
+                local fontFromIdx = ctx.fontIndex[face]
                 table.insert(loadedFonts, face .. " -> " .. fontFromIdx.filepath)
             else
-                -- already failed in a previous subtitle
                 table.insert(failedFonts, face)
             end
             ::continue_face::
         end
 
-        context.files[file] = {
-            styleFontMap = (context.files[file] and context.files[file].styleFontMap) or nil,
-            usedSet = (context.files[file] and context.files[file].usedSet) or nil,
+        ctx.subFiles[file] = {
+            styleFontMap = (ctx.subFiles[file] and ctx.subFiles[file].styleFontMap) or nil,
+            usedSet = (ctx.subFiles[file] and ctx.subFiles[file].usedSet) or nil,
             required = requiredFonts,
             loaded = loadedFonts,
             failed = failedFonts
         }
-        if options.report then
-            fontReport.subtitle(context, file, cacheKey, baseCacheDir)
+        if ctx.reportEnabled then
+            fontReport.subtitle(ctx, file, ctx.cacheKey, ctx.baseCacheDir)
         end
     end
 
     for filepath, filename in pairs(newFont) do
         local linkFileName = filepath == filename and filename or filepath:gsub('/', '-')
-        local linkFile = utils.join_path(fontCacheDir, linkFileName)
-        local sourceFile = utils.join_path(fontDir, filepath);
+        local linkFile = utils.join_path(ctx.fontCacheDir, linkFileName)
+        local sourceFile = utils.join_path(ctx.fontDir, filepath)
         log.debug("create link file: " .. linkFile)
         log.info("load font: " .. filepath)
         common.link(sourceFile, linkFile)
-        linkFileSize = linkFileSize + 1
-        linkFileList[linkFileSize] = linkFile
+        ctx.linkFileSize = ctx.linkFileSize + 1
+        ctx.linkFileList[ctx.linkFileSize] = linkFile
     end
 
     if newFontSize > 0 then
-        local sid = mp.get_property_number("sid") or 0
+        local sid = mp.get_property_number("sid") or -1
         if sid > 0 then
             mp.set_property_number("sid", 0)
             mp.set_property_number("sid", sid)
@@ -205,31 +141,54 @@ local function loadFont(_, trackList)
     end
 end
 
-local function removeCache()
-    for i = 1, linkFileSize do
-        local linkFile = linkFileList[i]
+local function removeCache(ctx)
+    for i = 1, ctx.linkFileSize do
+        local linkFile = ctx.linkFileList[i]
         log.debug("remove font link file: " .. linkFile)
         local _, filename = utils.split_path(linkFile)
         log.info("unload font: " .. filename)
         common.unlink(linkFile)
     end
-    log.debug("remove font cache dir: " .. fontCacheDir)
-    common.rmdir(fontCacheDir)
+    log.debug("remove font cache dir: " .. ctx.fontCacheDir)
+    common.rmdir(ctx.fontCacheDir)
 end
 
-local function onFileLoaded(e)
-    log.debug("event: " .. e.event)
-    local trackList = mp.get_property_native("track-list")
-    loadFont(nil, trackList)
+local function main()
+    require "mp.options".read_options(options, "font_loader")
+
+    local baseCacheDir = mp.command_native({ "expand-path", options.cacheDir })
+    log.info("create base cache dir: " .. baseCacheDir)
+    common.mkdir(baseCacheDir)
+
+    local fontIndex, fontDir = index.load(options)
+
+    local cacheKey = os.date("%Y%m%d%H%M%S_") .. common.randomString(6)
+    local fontCacheDir = utils.join_path(baseCacheDir, cacheKey)
+    log.info("create font cache dir, path is: " .. fontCacheDir)
+    common.mkdir(fontCacheDir)
+
+    local context = {
+        fontIndex = fontIndex,
+        fontDir = fontDir,
+        fontCacheDir = fontCacheDir,
+        cacheKey = cacheKey,
+        baseCacheDir = baseCacheDir,
+        reportEnabled = options.report,
+        assFileSet = {},
+        fontSet = {},
+        video = "",
+        subFiles = {},
+        linkFileList = {},
+        linkFileSize = 0,
+    }
+
+    mp.set_property("sub-fonts-dir", fontCacheDir)
+    mp.observe_property("track-list", "native", function(_, trackList)
+        loadFont(context, trackList)
+    end)
+    mp.register_event("shutdown", function()
+        removeCache(context)
+    end)
 end
 
-local function onTrackListProp(e, trackList)
-    log.debug("property: " .. e)
-    loadFont(e, trackList)
-end
-
-mp.set_property("sub-fonts-dir", fontCacheDir)
-mp.observe_property("track-list", "native", onTrackListProp)
--- -- mp.register_event("file-loaded", test1)
--- mp.register_event("file-loaded", onFileLoaded)
-mp.register_event('shutdown', removeCache)
+main()

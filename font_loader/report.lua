@@ -16,7 +16,7 @@ function M.video(path, cacheKey, baseCacheDir)
     if videoWritten then return end
     videoWritten = true
     if not logFile then
-        logFile = utils.join_path(baseCacheDir, "font_loader-" .. cacheKey .. ".report")
+        logFile = utils.join_path(baseCacheDir, "font_loader-" .. cacheKey .. ".log")
     end
     local f = io.open(logFile, "w")
     if f then
@@ -32,9 +32,9 @@ end
 ---@param baseCacheDir string
 function M.subtitle(context, file, cacheKey, baseCacheDir)
     if not logFile then
-        logFile = utils.join_path(baseCacheDir, "font_loader-" .. cacheKey .. ".report")
+        logFile = utils.join_path(baseCacheDir, "font_loader-" .. cacheKey .. ".log")
     end
-    local info = context.files[file]
+    local info = context.subFiles[file]
     if not info then return end
 
     -- compute unused fonts
@@ -68,7 +68,7 @@ function M.subtitle(context, file, cacheKey, baseCacheDir)
     f:write("\n")
     f:close()
 
-    context.files[file] = nil
+    context.subFiles[file] = nil
 end
 
 return M
