@@ -58,7 +58,8 @@ local function createSymbolLink(sourceFile, linkFile)
     local r = mp.command_native({
         name = "subprocess",
         playback_only = false,
-        capture_stdout = true,
+        capture_stdout = false,
+        detach = true,
         args = command(sourceFile, linkFile)
     })
 end
