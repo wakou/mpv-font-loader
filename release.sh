@@ -106,14 +106,7 @@ download_conan() {
     local url="${CONAN_BASE}/${name}/${version}/_/_/revisions/${recipe_rev}/packages/${pkg_id}/revisions/${pkg_rev}/files/conan_package.tgz"
 
     echo "    下载: ${name} → ${dst}"
-    curl -fsSL "$url" | tar -xzf - -C "$OUT_DIR" --transform "s|.*/||" "$src"
-
-    # 需要重命名
-    local extracted_name
-    extracted_name="$(basename "$src")"
-    if [ "$extracted_name" != "$dst" ]; then
-        mv "${OUT_DIR}/${extracted_name}" "${OUT_DIR}/${dst}"
-    fi
+    curl -fsSL "$url" | tar -xzf - --to-stdout "$src" > "${OUT_DIR}/${dst}"
 }
 
 # 从 ConanCenter 下载并提取多个文件
@@ -124,18 +117,17 @@ download_conan_multi() {
 
     local url="${CONAN_BASE}/${name}/${version}/_/_/revisions/${recipe_rev}/packages/${pkg_id}/revisions/${pkg_rev}/files/conan_package.tgz"
 
-    local tmpdir="${BUILD_DIR}/_extract"
-    mkdir -p "$tmpdir"
-    curl -fsSL "$url" | tar -xzf - -C "$tmpdir"
+    local tmp_tgz="${BUILD_DIR}/_multi.tgz"
+    curl -fsSL "$url" -o "$tmp_tgz"
 
     while [[ $# -ge 2 ]]; do
         local src="$1" dst="$2"
         shift 2
         echo "    提取: $(basename "$src") → ${dst}"
-        cp "${tmpdir}/${src}" "${OUT_DIR}/${dst}"
+        tar -xzf "$tmp_tgz" --to-stdout "$src" > "${OUT_DIR}/${dst}"
     done
 
-    rm -rf "$tmpdir"
+    rm -f "$tmp_tgz"
 }
 
 # ─── 创建输出目录 ───────────────────────────────────────────
@@ -161,11 +153,11 @@ case "$TARGET_OS" in
         ;;
     macos)
         download_conan "uchardet" "0.0.8" "$UCHARDET_RECIPE_REV" "$U_PKG" "$U_REV" \
-            "lib/libuchardet.dylib"
+            "lib/libuchardet.0.0.8.dylib" "libuchardet.dylib"
         ;;
     linux)
         download_conan "uchardet" "0.0.8" "$UCHARDET_RECIPE_REV" "$U_PKG" "$U_REV" \
-            "lib/libuchardet.so"
+            "lib/libuchardet.so.0.0.8" "libuchardet.so"
         ;;
 esac
 
@@ -184,13 +176,13 @@ case "$TARGET_OS" in
         ;;
     macos)
         download_conan_multi "libiconv" "1.18" "$ICONV_RECIPE_REV" "$I_PKG" "$I_REV" \
-            "lib/libiconv.dylib"   "libiconv.dylib" \
+            "lib/libiconv.2.dylib"   "libiconv.dylib" \
             "lib/libcharset.1.dylib" "libcharset.1.dylib"
         ;;
     linux)
         download_conan_multi "libiconv" "1.18" "$ICONV_RECIPE_REV" "$I_PKG" "$I_REV" \
-            "lib/libiconv.so"   "libiconv.so" \
-            "lib/libcharset.so" "libcharset.so"
+            "lib/libiconv.so.2.7.0"   "libiconv.so" \
+            "lib/libcharset.so.1.0.0" "libcharset.so"
         ;;
 esac
 
