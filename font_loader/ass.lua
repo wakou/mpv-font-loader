@@ -41,7 +41,7 @@ local function split(str, pat)
     return t
 end
 
-local function getFontListFromAss(filePath)
+local function getFontListFromAss(filePath, context)
     log.info("parse sub file: ", filePath)
     local fontList = {}
 
@@ -62,7 +62,11 @@ local function getFontListFromAss(filePath)
 
     local section = nil
     local styleFontnameIndex = -1
+    local styleNameIndex = -1
+    local styleFontMap = {}
+    local fontSet = {}
     local eventTextCommaIndex = -1
+    local eventStyleCommaIndex = -1
 
     for line in iter(iterParam) do
         if string.lower(string.sub(line, 1, 11)) == "[v4 styles]"
@@ -79,6 +83,7 @@ local function getFontListFromAss(filePath)
         if section == "Styles" and starts_with(line, "Format") then
             local lineSplitArr = split(line, "[,:]")
             styleFontnameIndex = indexOf(lineSplitArr, "Fontname", trim) or -1
+            styleNameIndex = indexOf(lineSplitArr, "Name", trim) or -1
             if styleFontnameIndex == -1 then
                 break;
             end
@@ -90,33 +95,66 @@ local function getFontListFromAss(filePath)
             if starts_with(fontname, '@') then
                 fontname = string.sub(fontname, 2)
             end
-            log.debug("found font: " .. fontname)
-            table.insert(fontList, fontname)
+            if styleNameIndex ~= -1 then
+                local styleName = trim(split(line, "[,:]")[styleNameIndex])
+                if starts_with(styleName, "*") then
+                    styleName = string.sub(styleName, 2)
+                end
+                styleFontMap[styleName] = fontname
+            end
+            log.debug("style font: " .. fontname)
             goto continue
         end
 
         if section == "Events" then
             if starts_with(line, "Format") then
                 local textFormatIndex = string.find(line, 'Text', 8, true);
-                local _, count = string.gsub(string.sub(line, 1, textFormatIndex), ',', "")
-                eventTextCommaIndex = count
-                -- local fontname=trim(split(line,"[,:]")[styleFontnameIndex])
-                -- if starts_with(fontname,'@') then
-                --     fontname=string.sub(fontname,2)
-                -- end
-                -- table.insert(fontList,fontname)
+                local _, textCount = string.gsub(string.sub(line, 1, textFormatIndex), ',', "")
+                eventTextCommaIndex = textCount
+                local styleFormatIndex = string.find(line, 'Style', 8, true);
+                if styleFormatIndex then
+                    local _, styleCount = string.gsub(string.sub(line, 1, styleFormatIndex), ',', "")
+                    eventStyleCommaIndex = styleCount
+                end
                 goto continue
             end
 
             if starts_with(line, "Dialogue") then
-                local index, commaCount = 0, 0
+                -- extract Style name and add its font
+                if eventStyleCommaIndex >= 0 then
+                    local styleStart, commaCount = nil, 0
+                    for i = 1, #line do
+                        local c = line:sub(i, i)
+                        if c == "," then
+                            commaCount = commaCount + 1
+                            if commaCount == eventStyleCommaIndex then
+                                styleStart = i + 1
+                            elseif commaCount == eventStyleCommaIndex + 1 then
+                                local styleName = trim(line:sub(styleStart, i - 1))
+                                if starts_with(styleName, '*') then
+                                    styleName = styleName:sub(2)
+                                end
+                                local fn = styleFontMap[styleName]
+                                if fn and not fontSet[fn] then
+                                    fontSet[fn] = true
+                                    fn = starts_with(fn, '@') and string.sub(fn, 2) or fn
+                                    log.debug("found font: " .. fn)
+                                    table.insert(fontList, fn)
+                                end
+                                break
+                            end
+                        end
+                    end
+                end
+
+                -- find Text field start
+                local index, commaCount2 = 0, 0
                 for c in line:gmatch "." do
                     index = index + 1;
                     if c == "," then
-                        commaCount = commaCount + 1
+                        commaCount2 = commaCount2 + 1
                     end
-                    if commaCount == eventTextCommaIndex then break end
-                    -- do something with c
+                    if commaCount2 == eventTextCommaIndex then break end
                 end
 
                 local textStart = index + 1
@@ -134,8 +172,11 @@ local function getFontListFromAss(filePath)
                             if starts_with(fontname, '@') then
                                 fontname = string.sub(fontname, 2)
                             end
-                            table.insert(fontList, fontname)
-                            log.debug("found font: " .. fontname)
+                            if not fontSet[fontname] then
+                                fontSet[fontname] = true
+                                log.debug("found font: " .. fontname)
+                                table.insert(fontList, fontname)
+                            end
                         end
                         if findFont and c ~= "\\" then
                             table.insert(fontnameCharArr, c)
@@ -161,6 +202,11 @@ local function getFontListFromAss(filePath)
     if des ~= nil then
         des:close()
     end
+
+    if context ~= nil then
+        context[filePath] = { styleFontMap = styleFontMap, usedSet = fontSet }
+    end
+
     return fontList
 end
 

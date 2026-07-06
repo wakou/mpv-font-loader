@@ -24,7 +24,7 @@ local log = require "mp.msg"
 local fc = require "fc"
 local ass = require "ass"
 local common = require "common"
-local fontLog = require "log"
+local fontReport = require "report"
 
 local options = {
     fontDir = "",
@@ -32,7 +32,7 @@ local options = {
     fontIndexFile = "~~/font-index",
     cacheDir = "~~/fontCache/",
     remoteFontDir = "",
-    log = false
+    report = false
 }
 
 require "mp.options".read_options(options, "font_loader")
@@ -90,9 +90,7 @@ local fontCacheDir = utils.join_path(baseCacheDir, cacheKey)
 log.info("create font cache dir, path is: " .. fontCacheDir)
 common.mkdir(fontCacheDir)
 
-if options.log then
-    fontLog.setup(cacheKey, baseCacheDir)
-end
+local context = { video = "", files = {} }
 
 local assFileSet = {}
 local fontSet = {}
@@ -126,14 +124,18 @@ local function loadFont(_, trackList)
     local newFontSize = 0
 
     -- write video path once per session
-    if options.log then
-        fontLog.video(mp.get_property("path") or "")
+    if context.video == "" then
+        context.video = mp.get_property("path") or ""
+        if options.report then
+            fontReport.video(context.video, cacheKey, baseCacheDir)
+        end
     end
 
     for i = 1, subFileSize do
         local file = subFileList[i]
         assFileSet[file] = false
-        local fontList = ass.getFontListFromAss(file) or {}
+        local fontList = ass.getFontListFromAss(file, context)
+        fontList = fontList or {}
 
         local requiredFonts = {}
         local loadedFonts = {}
@@ -171,9 +173,15 @@ local function loadFont(_, trackList)
             ::continue_face::
         end
 
-        -- write log for this subtitle file
-        if options.log then
-            fontLog.subtitle(file, requiredFonts, loadedFonts, failedFonts)
+        context.files[file] = {
+            styleFontMap = (context.files[file] and context.files[file].styleFontMap) or nil,
+            usedSet = (context.files[file] and context.files[file].usedSet) or nil,
+            required = requiredFonts,
+            loaded = loadedFonts,
+            failed = failedFonts
+        }
+        if options.report then
+            fontReport.subtitle(context, file, cacheKey, baseCacheDir)
         end
     end
 
